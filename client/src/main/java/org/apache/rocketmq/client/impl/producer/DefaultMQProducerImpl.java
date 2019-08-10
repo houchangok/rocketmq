@@ -520,7 +520,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         final SendCallback sendCallback,
         final long timeout
     ) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
+        //producer 服务是否正常
         this.makeSureStateOK();
+        //验证发送的消息，主要是topic是否合乎规范，消息是否为空，消息是否超过默认的最大值
         Validators.checkMessage(msg, this.defaultMQProducer);
 
         final long invokeID = random.nextLong();
