@@ -69,6 +69,7 @@ public class RemotingCommand {
         }
     }
 
+    //命令请求码，请求命令类型
     private int code;
     private LanguageCode language = LanguageCode.JAVA;
     private int version = 0;
