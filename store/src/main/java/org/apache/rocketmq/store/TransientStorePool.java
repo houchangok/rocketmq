@@ -28,11 +28,19 @@ import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.apache.rocketmq.store.util.LibC;
 import sun.nio.ch.DirectBuffer;
 
+/**
+ * @author xn092072
+ * @date
+ * TransientStorePool：短暂的存储池
+ * rocketmq单独创建一个mappedByteBuffer内存缓存池，用来临时存储数据，数据先写入该内存映射中，
+ * 然后由commit线程定时将数据从该内存中复制到与目的物理文件对应的内存映射中。
+ */
 public class TransientStorePool {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
     private final int poolSize;
     private final int fileSize;
+    //双端队列存储ByteBuffer容器
     private final Deque<ByteBuffer> availableBuffers;
     private final MessageStoreConfig storeConfig;
 
@@ -52,6 +60,7 @@ public class TransientStorePool {
 
             final long address = ((DirectBuffer) byteBuffer).address();
             Pointer pointer = new Pointer(address);
+            //使用Libary类库将该批次内存锁定
             LibC.INSTANCE.mlock(pointer, new NativeLong(fileSize));
 
             availableBuffers.offer(byteBuffer);

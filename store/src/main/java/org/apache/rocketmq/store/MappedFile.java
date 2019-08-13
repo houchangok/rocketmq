@@ -113,6 +113,7 @@ public class MappedFile extends ReferenceResource {
     public static void clean(final ByteBuffer buffer) {
         if (buffer == null || !buffer.isDirect() || buffer.capacity() == 0)
             return;
+        //若是堆外内存，则调用clean方法清理
         invoke(invoke(viewed(buffer), "cleaner"), "clean");
     }
 
@@ -453,12 +454,14 @@ public class MappedFile extends ReferenceResource {
 
     @Override
     public boolean cleanup(final long currentRef) {
+        //若当前mappedfile可用，不用清理，直接返回
         if (this.isAvailable()) {
             log.error("this file[REF:" + currentRef + "] " + this.fileName
                 + " have not shutdown, stop unmapping.");
             return false;
         }
 
+        //如果资源已经被清理
         if (this.isCleanupOver()) {
             log.error("this file[REF:" + currentRef + "] " + this.fileName
                 + " have cleanup, do not do it again.");
