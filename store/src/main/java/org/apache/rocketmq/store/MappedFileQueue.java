@@ -165,6 +165,7 @@ public class MappedFileQueue {
             Arrays.sort(files);
             for (File file : files) {
 
+                //如果文件大小和配置文件的单个文件大小不一致，则忽略改目录下的所有文件
                 if (file.length() != this.mappedFileSize) {
                     log.warn(file + "\t" + file.length()
                         + " length not matched message store config value, please check it manually");
