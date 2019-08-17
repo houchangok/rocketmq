@@ -225,6 +225,7 @@ public class MQClientInstance {
 
     public void start() throws MQClientException {
 
+        //为何这个地方上锁了 TODO
         synchronized (this) {
             switch (this.serviceState) {
                 case CREATE_JUST:
@@ -237,7 +238,7 @@ public class MQClientInstance {
                     this.mQClientAPIImpl.start();
                     // Start various schedule tasks
                     this.startScheduledTask();
-                    // Start pull service
+                    // Start pull service 消息拉取服务线程
                     this.pullMessageService.start();
                     // Start rebalance service
                     this.rebalanceService.start();

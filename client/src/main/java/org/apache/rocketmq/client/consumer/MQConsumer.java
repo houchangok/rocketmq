@@ -31,6 +31,16 @@ public interface MQConsumer extends MQAdmin {
     /**
      * If consuming failure,message will be send back to the brokers,and delay consuming some time
      */
+
+    /**
+     *
+     * @param msg 消息
+     * @param delayLevel 消息延迟级别
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     * @throws MQClientException
+     */
     @Deprecated
     void sendMessageBack(final MessageExt msg, final int delayLevel) throws RemotingException,
         MQBrokerException, InterruptedException, MQClientException;
@@ -38,6 +48,7 @@ public interface MQConsumer extends MQAdmin {
     /**
      * If consuming failure,message will be send back to the broker,and delay consuming some time
      */
+    //发送消息ACK确认
     void sendMessageBack(final MessageExt msg, final int delayLevel, final String brokerName)
         throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
 

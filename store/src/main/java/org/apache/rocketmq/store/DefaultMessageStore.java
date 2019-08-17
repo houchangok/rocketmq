@@ -1598,13 +1598,16 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         private boolean isSpaceToDelete() {
+            //commitlog、consumeQueue文件所在磁盘分区的最大使用量
             double ratio = DefaultMessageStore.this.getMessageStoreConfig().getDiskMaxUsedSpaceRatio() / 100.0;
 
+            //是否需要立即执行清除过期文件
             cleanImmediately = false;
 
             {
                 String storePathPhysic = DefaultMessageStore.this.getMessageStoreConfig().getStorePathCommitLog();
                 double physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathPhysic);
+                //diskSpaceWarningLevelRatio磁盘写入阈值，超过该值，将设置磁盘不可写，此时会拒绝新消息的写入
                 if (physicRatio > diskSpaceWarningLevelRatio) {
                     boolean diskok = DefaultMessageStore.this.runningFlags.getAndMakeDiskFull();
                     if (diskok) {
@@ -1612,6 +1615,7 @@ public class DefaultMessageStore implements MessageStore {
                     }
 
                     cleanImmediately = true;
+                    //diskSpaceCleanForciblyRatio:超过该值，建议立即启动过期文件删除操作，但不会拒绝新消息的写入
                 } else if (physicRatio > diskSpaceCleanForciblyRatio) {
                     cleanImmediately = true;
                 } else {

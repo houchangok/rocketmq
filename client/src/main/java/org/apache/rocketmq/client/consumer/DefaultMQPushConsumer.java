@@ -76,6 +76,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      *
      * See <a href="http://rocketmq.apache.org/docs/core-concept/">here</a> for further discussion.
      */
+    /**
+     * 消费者所属组
+     */
     private String consumerGroup;
 
     /**
@@ -89,6 +92,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * </p>
      *
      * This field defaults to clustering.
+     */
+    /**
+     * 消息消费模式，分为集群模式和广播模式，默认为集群模式
      */
     private MessageModel messageModel = MessageModel.CLUSTERING;
 
@@ -123,6 +129,10 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * </li>
      * </ul>
      */
+    /**
+     * 根据消息进度从消息服务器拉取不到消息时重新计算消费策略
+     *
+     */
     private ConsumeFromWhere consumeFromWhere = ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET;
 
     /**
@@ -136,20 +146,33 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     /**
      * Queue allocation algorithm specifying how message queues are allocated to each consumer clients.
      */
+    /**
+     * 集群模式下消息队列负载策略
+     */
     private AllocateMessageQueueStrategy allocateMessageQueueStrategy;
 
     /**
      * Subscription relationship
+     */
+    /**
+     *
+     * 消息订阅
      */
     private Map<String /* topic */, String /* sub expression */> subscription = new HashMap<String, String>();
 
     /**
      * Message listener
      */
+    /**
+     * 消息业务监听器
+     */
     private MessageListener messageListener;
 
     /**
      * Offset Storage
+     */
+    /**
+     * 消息消费进度存储器
      */
     private OffsetStore offsetStore;
 
@@ -170,6 +193,9 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     /**
      * Concurrently max span offset.it has no effect on sequential consumption
+     */
+    /**
+     * 并发消息消费时处理队列的最大跨度，如果消息处理队列中偏移量最大的消息和偏移量最小的消息的跨度超过2000，则延迟50毫秒后再拉取消息
      */
     private int consumeConcurrentlyMaxSpan = 2000;
 
