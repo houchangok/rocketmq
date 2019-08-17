@@ -70,6 +70,10 @@ public abstract class ReferenceResource {
 
     public abstract boolean cleanup(final long currentRef);
 
+    /**
+     * 判断是否清理完成：引用次数小于等于0并且cleanupOver为true
+     * @return
+     */
     public boolean isCleanupOver() {
         return this.refCount.get() <= 0 && this.cleanupOver;
     }

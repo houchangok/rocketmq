@@ -41,16 +41,37 @@ import org.apache.rocketmq.store.config.FlushDiskType;
 import org.apache.rocketmq.store.util.LibC;
 import sun.nio.ch.DirectBuffer;
 
+/**
+ * 对应存储的一个文件，文件大小一般是固定的
+ */
 public class MappedFile extends ReferenceResource {
+    /**
+     * 操作系统页大小
+     */
     public static final int OS_PAGE_SIZE = 1024 * 4;
     protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    /**
+     * 当前jvm实例中mapped-file虚拟内存
+     */
     private static final AtomicLong TOTAL_MAPPED_VIRTUAL_MEMORY = new AtomicLong(0);
 
+    /**
+     * 当前jvm实例中mappedfile对象个数
+     */
     private static final AtomicInteger TOTAL_MAPPED_FILES = new AtomicInteger(0);
+    /**
+     * 当前该文件的写指针
+     */
     protected final AtomicInteger wrotePosition = new AtomicInteger(0);
     //ADD BY ChenYang
+    /**
+     * 当前该文件的提交指针：如果开启了poolEnable,则数据会存储在storepool中，然后提交到内存映射bytebuffer中，再刷写到磁盘上
+     */
     protected final AtomicInteger committedPosition = new AtomicInteger(0);
+    /**
+     * 刷写到磁盘指针，该指针之前的数据持久化到磁盘中
+     */
     private final AtomicInteger flushedPosition = new AtomicInteger(0);
     protected int fileSize;
     protected FileChannel fileChannel;
@@ -82,6 +103,7 @@ public class MappedFile extends ReferenceResource {
         if (dirName != null) {
             File f = new File(dirName);
             if (!f.exists()) {
+                //创建目录是否成功
                 boolean result = f.mkdirs();
                 log.info(dirName + " mkdir " + (result ? "OK" : "Failed"));
             }
@@ -91,6 +113,7 @@ public class MappedFile extends ReferenceResource {
     public static void clean(final ByteBuffer buffer) {
         if (buffer == null || !buffer.isDirect() || buffer.capacity() == 0)
             return;
+        //若是堆外内存，则调用clean方法清理
         invoke(invoke(viewed(buffer), "cleaner"), "clean");
     }
 
@@ -160,7 +183,10 @@ public class MappedFile extends ReferenceResource {
         ensureDirOK(this.file.getParent());
 
         try {
+            //通过文件对象获取关联的文件通道
             this.fileChannel = new RandomAccessFile(this.file, "rw").getChannel();
+            //文件通道和bytebuffer之间的映射关系：desc:Maps a region of this channel's file directly into memory
+
             this.mappedByteBuffer = this.fileChannel.map(MapMode.READ_WRITE, 0, fileSize);
             TOTAL_MAPPED_VIRTUAL_MEMORY.addAndGet(fileSize);
             TOTAL_MAPPED_FILES.incrementAndGet();
@@ -267,10 +293,11 @@ public class MappedFile extends ReferenceResource {
         return false;
     }
 
-    /**
+    /** 刷盘
      * @return The current flushed position
      */
     public int flush(final int flushLeastPages) {
+        //是否满足刷盘的条件
         if (this.isAbleToFlush(flushLeastPages)) {
             if (this.hold()) {
                 int value = getReadPosition();
@@ -280,6 +307,7 @@ public class MappedFile extends ReferenceResource {
                     if (writeBuffer != null || this.fileChannel.position() != 0) {
                         this.fileChannel.force(false);
                     } else {
+                        //将缓冲区的数据刷到磁盘上
                         this.mappedByteBuffer.force();
                     }
                 } catch (Throwable e) {
@@ -296,7 +324,13 @@ public class MappedFile extends ReferenceResource {
         return this.getFlushedPosition();
     }
 
+    /**
+     *commitLeastPages:本次最小提交页数
+     * @param commitLeastPages
+     * @return
+     */
     public int commit(final int commitLeastPages) {
+        //writeBuffer为空，直接返回
         if (writeBuffer == null) {
             //no need to commit data to file channel, so just regard wrotePosition as committedPosition.
             return this.wrotePosition.get();
@@ -329,6 +363,7 @@ public class MappedFile extends ReferenceResource {
                 byteBuffer.position(lastCommittedPosition);
                 byteBuffer.limit(writePos);
                 this.fileChannel.position(lastCommittedPosition);
+                //bytebuffer中的数据写入到fileChannel
                 this.fileChannel.write(byteBuffer);
                 this.committedPosition.set(writePos);
             } catch (Throwable e) {
@@ -419,12 +454,14 @@ public class MappedFile extends ReferenceResource {
 
     @Override
     public boolean cleanup(final long currentRef) {
+        //若当前mappedfile可用，不用清理，直接返回
         if (this.isAvailable()) {
             log.error("this file[REF:" + currentRef + "] " + this.fileName
                 + " have not shutdown, stop unmapping.");
             return false;
         }
 
+        //如果资源已经被清理
         if (this.isCleanupOver()) {
             log.error("this file[REF:" + currentRef + "] " + this.fileName
                 + " have cleanup, do not do it again.");
