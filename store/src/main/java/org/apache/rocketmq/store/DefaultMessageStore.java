@@ -514,20 +514,34 @@ public class DefaultMessageStore implements MessageStore {
 
         GetMessageResult getResult = new GetMessageResult();
 
+        //当前commitlog文件最大偏移量
         final long maxOffsetPy = this.commitLog.getMaxOffset();
 
+        //根据主题名称和队列编号获取消息消费队列
         ConsumeQueue consumeQueue = findConsumeQueue(topic, queueId);
         if (consumeQueue != null) {
             minOffset = consumeQueue.getMinOffsetInQueue();
             maxOffset = consumeQueue.getMaxOffsetInQueue();
 
+            //maxOffset＝0表示当前消息队列没有消息
             if (maxOffset == 0) {
                 status = GetMessageStatus.NO_MESSAGE_IN_QUEUE;
+                /**
+                 * 若当前broker为主节点或者offsetCheckInSlave为false,则下次拉取的偏移量依然为offset
+                 * 当前broker为从节点或者offsetCheckInSlave为true,则下次拉取的偏移量为0
+                 */
                 nextBeginOffset = nextOffsetCorrection(offset, 0);
+                //待拉取消息偏移量小于队列的起始偏移量
             } else if (offset < minOffset) {
                 status = GetMessageStatus.OFFSET_TOO_SMALL;
+                /**
+                 * 若当前broker为主节点或者offsetCheckInSlave为false,则下次拉取的偏移量依然为offset
+                 * 当前broker为从节点或者offsetCheckInSlave为true,则下次拉取的偏移量为minOffset
+                 */
                 nextBeginOffset = nextOffsetCorrection(offset, minOffset);
+                //待拉取偏移量等于队列最大偏移量
             } else if (offset == maxOffset) {
+                //下次拉取的偏移量依然为offset
                 status = GetMessageStatus.OFFSET_OVERFLOW_ONE;
                 nextBeginOffset = nextOffsetCorrection(offset, offset);
             } else if (offset > maxOffset) {
@@ -1165,6 +1179,7 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     private long nextOffsetCorrection(long oldOffset, long newOffset) {
+
         long nextOffset = oldOffset;
         if (this.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE || this.getMessageStoreConfig().isOffsetCheckInSlave()) {
             nextOffset = newOffset;
@@ -1823,6 +1838,9 @@ public class DefaultMessageStore implements MessageStore {
             return this.reputFromOffset < DefaultMessageStore.this.commitLog.getMaxOffset();
         }
 
+        /**
+         *
+         */
         private void doReput() {
             if (this.reputFromOffset < DefaultMessageStore.this.commitLog.getMinOffset()) {
                 log.warn("The reputFromOffset={} is smaller than minPyOffset={}, this usually indicate that the dispatch behind too much and the commitlog has expired.",

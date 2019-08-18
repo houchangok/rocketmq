@@ -67,6 +67,13 @@ public class PullAPIWrapper {
         this.unitMode = unitMode;
     }
 
+    /**
+     * 将消息字节数组解码成消息列表填充msgList,并对消息进行消息过滤模式
+     * @param mq
+     * @param pullResult
+     * @param subscriptionData
+     * @return
+     */
     public PullResult processPullResult(final MessageQueue mq, final PullResult pullResult,
         final SubscriptionData subscriptionData) {
         PullResultExt pullResultExt = (PullResultExt) pullResult;
@@ -79,6 +86,7 @@ public class PullAPIWrapper {
             List<MessageExt> msgListFilterAgain = msgList;
             if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
                 msgListFilterAgain = new ArrayList<MessageExt>(msgList.size());
+                //消息过滤
                 for (MessageExt msg : msgList) {
                     if (msg.getTags() != null) {
                         if (subscriptionData.getTagsSet().contains(msg.getTags())) {
@@ -139,6 +147,26 @@ public class PullAPIWrapper {
         }
     }
 
+    /**
+     *
+     * @param mq 表示从哪一个消息消费队列拉取消息
+     * @param subExpression 消息过滤表达式
+     * @param expressionType 消息过滤表达式类型 有TAG和SQL92
+     * @param subVersion
+     * @param offset 消息拉取偏移量
+     * @param maxNums 本次拉取最大消息条数
+     * @param sysFlag 拉取系统标记
+     * @param commitOffset 当前messageQueue的消费进度
+     * @param brokerSuspendMaxTimeMillis 消息拉取过程中允许broker挂起时间，默认式15秒
+     * @param timeoutMillis 消息拉取超时时间
+     * @param communicationMode 消息拉取模式，有同步和异步之分，默认是异步的
+     * @param  从Broker拉取到消息后的回调方法，该回调逻辑有点复杂，要好好品尝一翻逻辑代码 TODO
+     * @return
+     * @throws MQClientException
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
     public PullResult pullKernelImpl(
         final MessageQueue mq,
         final String subExpression,
@@ -165,7 +193,7 @@ public class PullAPIWrapper {
 
         if (findBrokerResult != null) {
             {
-                // check version
+                // check version 是否是tag模式
                 if (!ExpressionType.isTagType(expressionType)
                     && findBrokerResult.getBrokerVersion() < MQVersion.Version.V4_1_0_SNAPSHOT.ordinal()) {
                     throw new MQClientException("The broker[" + mq.getBrokerName() + ", "
@@ -178,6 +206,8 @@ public class PullAPIWrapper {
                 sysFlagInner = PullSysFlag.clearCommitOffsetFlag(sysFlagInner);
             }
 
+
+            //构建消息拉取请求头
             PullMessageRequestHeader requestHeader = new PullMessageRequestHeader();
             requestHeader.setConsumerGroup(this.consumerGroup);
             requestHeader.setTopic(mq.getTopic());
@@ -192,10 +222,13 @@ public class PullAPIWrapper {
             requestHeader.setExpressionType(expressionType);
 
             String brokerAddr = findBrokerResult.getBrokerAddr();
+            //如果消息过滤模式为类过滤，则需要根据主题名称，broker地址找到注册在broker上的FilterServer地址，从FilterServer上拉取消息，
+            //否则从Broker上拉取消息
             if (PullSysFlag.hasClassFilterFlag(sysFlagInner)) {
                 brokerAddr = computPullFromWhichFilterServer(mq.getTopic(), brokerAddr);
             }
 
+            //根据communicationMode决定是同步还是异步从broker拉取消息
             PullResult pullResult = this.mQClientFactory.getMQClientAPIImpl().pullMessage(
                 brokerAddr,
                 requestHeader,
@@ -230,6 +263,7 @@ public class PullAPIWrapper {
             List<String> list = topicRouteData.getFilterServerTable().get(brokerAddr);
 
             if (list != null && !list.isEmpty()) {
+                //随即选择一个FilterServer
                 return list.get(randomNum() % list.size());
             }
         }
