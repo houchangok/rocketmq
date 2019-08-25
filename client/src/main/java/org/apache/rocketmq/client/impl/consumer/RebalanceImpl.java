@@ -179,6 +179,7 @@ public abstract class RebalanceImpl {
             if (mqs.isEmpty())
                 continue;
 
+            //向broker发送锁定消息队列
             FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(brokerName, MixAll.MASTER_ID, true);
             if (findBrokerResult != null) {
                 LockBatchRequestBody requestBody = new LockBatchRequestBody();
